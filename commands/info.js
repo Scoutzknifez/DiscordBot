@@ -6,10 +6,10 @@ const infoCommand = new SlashCommandBuilder()
 
 async function handler(interaction) {
     const embed = {
-        color: 0x000000,
+        color: 0x880000,
         title: "ScoutzDevBot Information",
-        url: "https://github.com/Scoutzknifez",
-        description: "This is just some information regarding the bot."
+        url: "https://github.com/Scoutzknifez/DiscordBot",
+        description: "This is a bot for Scoutzknifez and his development on Discord bots. \n\nIf you would like to see the code to this bot, go ahead and click on this link: https://github.com/Scoutzknifez/DiscordBot"
     };
 
     await interaction.reply({ embeds: [embed], ephemeral: true });
