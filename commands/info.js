@@ -9,7 +9,7 @@ async function handler(interaction) {
         color: 0x880000,
         title: "ScoutzDevBot Information",
         url: "https://github.com/Scoutzknifez/DiscordBot",
-        description: "This is a bot for Scoutzknifez and his development on Discord bots. \n\nIf you would like to see the code to this bot, go ahead and click on this link: https://github.com/Scoutzknifez/DiscordBot"
+        description: "This is a bot for Scoutzknifez and his development on Discord bots. \n\nIf you would like to see the code to this bot, go ahead and click the link below. \n\nGitHub Repository Link: https://github.com/Scoutzknifez/DiscordBot"
     };
 
     await interaction.reply({ embeds: [embed], ephemeral: true });
