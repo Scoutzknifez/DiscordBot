@@ -15,6 +15,7 @@ import {
 } from 'discord.js';
 import { handleCommand } from "./commandHandler.js";
 import { infoCommand } from './commands/info.js';
+import { remindCommand } from './commands/remind.js';
 
 config();
 
@@ -72,13 +73,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
 async function main() {
     const commands = [
-        infoCommand
+        infoCommand,
+        remindCommand
     ];
 
     try {
         console.log("Sending up slash command information...");
         await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), {
-            body: commands,
+            body: commands
         });
 
         client.login(TOKEN);
@@ -88,3 +90,5 @@ async function main() {
 }
 
 main();
+
+export { client }

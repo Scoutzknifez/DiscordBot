@@ -1,4 +1,5 @@
 import { handler as infoHandler } from "./commands/info.js";
+import { handler as remindHandler } from "./commands/remind.js";
 
     /*console.log(message);
     const reply = await message.reply(message);
@@ -8,6 +9,9 @@ import { handler as infoHandler } from "./commands/info.js";
 async function handleCommand(interaction) {
     if (interaction.commandName == "info") {
         await infoHandler(interaction);
+    }
+    else if (interaction.commandName == "remind") {
+        await remindHandler(interaction);
     }
 }
 

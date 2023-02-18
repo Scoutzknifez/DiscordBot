@@ -1,1 +1,2 @@
 https://github.com/stuyy/djs-v14-tutorial/blob/master/src/index.js
+https://discord.js.org/#/docs/discord.js/main/general/welcome
