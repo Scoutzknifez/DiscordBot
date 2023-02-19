@@ -5,6 +5,10 @@ const infoCommand = new SlashCommandBuilder()
     .setDescription("Information about the ScoutzDevBot.").toJSON();
 
 async function handler(interaction) {
+    sendReply(interaction);
+}
+
+async function sendReply(interaction) {
     const embed = {
         color: 0x880000,
         title: "ScoutzDevBot Information",
