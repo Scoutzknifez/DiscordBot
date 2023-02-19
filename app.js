@@ -16,6 +16,7 @@ import {
 import { handleCommand } from "./commandHandler.js";
 import { infoCommand } from './commands/info.js';
 import { remindCommand } from './commands/remind.js';
+import { ctaCommand } from "./commands/cta.js";
 
 config();
 
@@ -74,7 +75,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
 async function main() {
     const commands = [
         infoCommand,
-        remindCommand
+        remindCommand,
+        ctaCommand
     ];
 
     try {
