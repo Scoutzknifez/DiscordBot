@@ -18,6 +18,12 @@ import { infoCommand } from './commands/info.js';
 import { remindCommand } from './commands/remind.js';
 import { ctaCommand } from "./commands/cta.js";
 
+const commands = [
+    infoCommand,
+    remindCommand,
+    ctaCommand
+];
+
 config();
 
 const TOKEN = process.env.TOKEN;
@@ -39,10 +45,20 @@ const client = new Client({
 
 const rest = new REST({ version: '10' }).setToken(TOKEN);
 
-client.on('ready', () => {
+client.on('ready', async () => {
+    let promises = [];
+    client.guilds.cache.map(guild => {
+        console.log(`Sending up slash command information to ${guild.id}...`);
+        promises.push(
+            rest.put(Routes.applicationGuildCommands(CLIENT_ID, guild.id), {
+                body: commands
+            })
+        );
+    });
+
+    await Promise.all(promises);
+
     console.log("The bot is ready...");
-
-
 });
 
 /*client.on('messageCreate', async (message) => {
@@ -73,19 +89,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 async function main() {
-    const commands = [
-        infoCommand,
-        remindCommand,
-        ctaCommand
-    ];
-
     try {
-        console.log("Sending up slash command information...");
-        await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), {
-            body: commands
-        });
-
-        client.login(TOKEN);
+        await client.login(TOKEN);
     } catch (err) {
         console.log(err);
     }
