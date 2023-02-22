@@ -6,6 +6,8 @@ const ONE_MINUTE = 60 * ONE_SECOND;
 const FIVE_MINUTES = 5 * ONE_MINUTE;
 const TEN_MINUTES = 10 * ONE_MINUTE;
 
+const UPDATE_FREQUENCY = ONE_SECOND * 5;
+
 const remindCommand = new SlashCommandBuilder()
     .setName("remind")
     .setDescription("A remind command to ping you at a later time.")
@@ -51,101 +53,127 @@ const remindCommand = new SlashCommandBuilder()
 
 async function handler(interaction) {
     let commandArgs = interaction.options._hoistedOptions;
+    let channel = await client.channels.fetch(interaction.channelId);
 
     let argsMap = {
-        timeUntilPop: 0
+        popTime: Date.now(),
+        senderId: interaction.user.id,
+        channel
     };
+
+    let seconds = 0;
+    let minutes = 0;
+    let hours = 0;
 
     commandArgs.forEach(option => {
         let optionType = option.name;
 
         if (optionType == "seconds") {
-            let seconds = option.value;
-            argsMap.timeUntilPop += seconds * 1000;
+            seconds = option.value;
+            argsMap.popTime += seconds * 1000;
         } 
         else if (optionType == "minutes") {
-            let minutes = option.value;
-            argsMap.timeUntilPop += minutes * 60000;
+            minutes = option.value;
+            argsMap.popTime += minutes * 60000;
         }
         else if (optionType == "hours") {
-            let hours = option.value;
-            argsMap.timeUntilPop += hours * 3600000;
+            hours = option.value;
+            argsMap.popTime += hours * 3600000;
         } else {
             argsMap[optionType] = option.value;
         }        
     });
 
-    if (argsMap.timeUntilPop <= 0) {
+    if (seconds == 0 && minutes == 0 && hours == 0) {
         await interaction.reply({ content: `Please re-enter this command with time fields filled out!`, ephemeral: true });
         return;
     }
 
-    let timeField = createTimeField(argsMap);
-    let response = `<@${interaction.user.id}> The **${argsMap.content} (${argsMap.location})** pops in **${timeField}**`;
+    let currentDate = new Date();
+    let iso = currentDate.toISOString();
 
+    let currentSmallTime = iso.split('T')[1];
+    let currentHourUTC = currentSmallTime.split(':')[0];
+    let currentMinuteUTC = currentSmallTime.split(':')[1];
+
+    currentHourUTC = Number(currentHourUTC);
+    currentMinuteUTC = Number(currentMinuteUTC);
+
+    currentHourUTC += hours;
+    currentMinuteUTC += minutes;
+
+    while (currentMinuteUTC >= 60) {
+        currentHourUTC++;
+        currentMinuteUTC -= 60;
+    }
+
+    while (currentHourUTC >= 24) {
+        currentHourUTC -= 24;
+    }
+
+    let response = `The **${argsMap.content}** in **${argsMap.location}** pops at **${currentHourUTC < 10 ? `0${currentHourUTC}` : currentHourUTC}:${currentMinuteUTC < 10 ? `0${currentMinuteUTC}` : currentMinuteUTC}**`;
     await interaction.reply(response);
 
+    let updatingMessage = await channel.send(`<@${interaction.user.id}> The **${argsMap.content} (${argsMap.location})** pops in **${createTimeField(argsMap.popTime)}**`);
+
     setTimeout(() => {
-        argsMap.timeUntilPop -= 1000;
-        updateInteraction(interaction, argsMap);
-    }, 1000);
+        updateInteraction(updatingMessage, argsMap);
+    }, UPDATE_FREQUENCY);
 
-    if (argsMap.timeUntilPop < FIVE_MINUTES) {
+    let currentTime = Date.now();
+
+    if (argsMap.popTime - currentTime <= FIVE_MINUTES) {
         return;
     }
 
-    setTimeout(async () => {
+    setTimeout(() => {
         try {
-            let channel = await client.channels.fetch(interaction.channelId);
-            await channel.send(`<@${interaction.user.id}> This is your **5 MINUTE** reminder about the **${argsMap.content}** in **${argsMap.location}**!`);    
+            channel.send(`<@${interaction.user.id}> This is your **5 MINUTE** reminder about the **${argsMap.content}** in **${argsMap.location}**!`);    
         } catch (err) {
             console.log(err);
         }
-    }, argsMap.timeUntilPop - FIVE_MINUTES);
+    }, (argsMap.popTime - currentTime) - FIVE_MINUTES);
 
-    if (argsMap.timeUntilPop < TEN_MINUTES) {
+    if (argsMap.popTime - currentTime <= TEN_MINUTES) {
         return;
     }
 
-    setTimeout(async () => {
+    setTimeout(() => {
         try {
-            let channel = await client.channels.fetch(interaction.channelId);
-            await channel.send(`<@${interaction.user.id}> This is your **10 MINUTE** reminder about the **${argsMap.content}** in **${argsMap.location}**!`);
+            channel.send(`<@${interaction.user.id}> This is your **10 MINUTE** reminder about the **${argsMap.content}** in **${argsMap.location}**!`);
         } catch (err) {
             console.log(err);
         }
-    }, argsMap.timeUntilPop - TEN_MINUTES);
+    }, (argsMap.popTime - currentTime) - TEN_MINUTES);
 }
 
-async function updateInteraction(interaction, args) {
-    if (args.timeUntilPop <= 0) {
+async function updateInteraction(updatingMessage, args) {
+    if (args.popTime <= Date.now()) {
         try {
-            let response = `<@${interaction.user.id}> The **${args.content}** in **${args.location}** is **LIVE**`;
-            interaction.editReply(response);
+            let response = `<@${args.senderId}> The **${args.content}** in **${args.location}** is **LIVE**`;
+            updatingMessage.edit(response);
         } catch (err) {
             console.log(err);
-
-            let channel = await client.channels.fetch(interaction.channelId);
-            await channel.send(`<@${interaction.user.id}> The **${args.content}** in **${args.location}** is **LIVE**`);
+            args.channel.send(`<@${args.senderId}> The **${args.content}** in **${args.location}** is **LIVE**`);
         }
         return;
     }
 
     try {
-        let response = `<@${interaction.user.id}> The **${args.content} (${args.location})** pops in **${createTimeField(args)}**`;
-        interaction.editReply(response);
+        let response = `<@${args.senderId}> The **${args.content} (${args.location})** pops in **${createTimeField(args.popTime)}**`;
+        updatingMessage.edit(response);
     } catch (err) {
         console.log(err);
-    } 
+    }
 
     setTimeout(() => {
-        args.timeUntilPop -= 1000;
-        updateInteraction(interaction, args);
-    }, 1000);
+        updateInteraction(updatingMessage, args);
+    }, UPDATE_FREQUENCY);
 }
 
-function createTimeField(argsMap) {
-    let timeTillLive = argsMap.timeUntilPop;
+function createTimeField(popTime) {
+    let timeTillLive = popTime - Date.now();
+
     let seconds = 0;
     let minutes = 0;
     let hours = 0;
@@ -163,6 +191,16 @@ function createTimeField(argsMap) {
     while (timeTillLive > 0) {
         seconds++;
         timeTillLive -= 1000; 
+
+        if (seconds >= 60) {
+            minutes++;
+            seconds -= 60;
+        }
+    }
+
+    if (minutes >= 60) {
+        hours++;
+        minutes -= 60;
     }
 
     let timeField = "";

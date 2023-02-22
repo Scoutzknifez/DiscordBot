@@ -83,6 +83,7 @@ async function sendReply(interaction, argsMap) {
 
     const embed = {
         color: 0x387620,
+        // TRY TO MAKE THIS FREE TEXT WITHIN THE /cta COMMAND
         description: `${argsMap.message}`,
         fields: [
             {   // BLANK SPACE
@@ -101,7 +102,10 @@ async function sendReply(interaction, argsMap) {
                 name: "SETS",
                 value: `${argsMap.set_count}`
             }
-        ]
+        ],
+        footer: {
+            text: "MAKE SURE YOU SIGN UP ON THE CORRECT SHEET.  IF IT IS A ROAM, SIGN UP ON THE ROAM SECTION."
+        }
     };
 
     if (!argsMap.message) {
