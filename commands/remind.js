@@ -1,12 +1,17 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
-import { client } from "../app.js";
+import { client, isRateLimited, rateLimitResetTime } from "../app.js";
+import { logger } from "../Logger.js";
 
 const ONE_SECOND = 1000;
 const ONE_MINUTE = 60 * ONE_SECOND;
 const FIVE_MINUTES = 5 * ONE_MINUTE;
 const TEN_MINUTES = 10 * ONE_MINUTE;
+const ONE_HOUR = 60 * ONE_MINUTE;
 
-const UPDATE_FREQUENCY = ONE_SECOND * 5;
+let countersActive = 0;
+const rateLimitingSafety = 1.5;
+
+let lastMessageSentIsCrucial = false;
 
 const remindCommand = new SlashCommandBuilder()
     .setName("remind")
@@ -58,6 +63,8 @@ async function handler(interaction) {
     let argsMap = {
         popTime: Date.now(),
         senderId: interaction.user.id,
+        fiveMinuteReminder: null,
+        tenMinuteReminder: null,
         channel
     };
 
@@ -112,13 +119,37 @@ async function handler(interaction) {
     }
 
     let response = `The **${argsMap.content}** in **${argsMap.location}** pops at **${currentHourUTC < 10 ? `0${currentHourUTC}` : currentHourUTC}:${currentMinuteUTC < 10 ? `0${currentMinuteUTC}` : currentMinuteUTC}**`;
+    logger.log(response);
+    
+    lastMessageSentIsCrucial = true;
     await interaction.reply(response);
 
-    let updatingMessage = await channel.send(`<@${interaction.user.id}> The **${argsMap.content} (${argsMap.location})** pops in **${createTimeField(argsMap.popTime)}**`);
+    let currentTime = Date.now();
+    let timeTillPop = argsMap.popTime - currentTime;
 
-    setTimeout(() => {
-        updateInteraction(updatingMessage, argsMap);
-    }, UPDATE_FREQUENCY);
+    // If the poptime is sooner than one hour, just do a regular message
+    if (timeTillPop < ONE_HOUR) {
+        sendUpdatingMessage(interaction, argsMap);
+        return;
+    }
+
+    lastMessageSentIsCrucial = true;
+    let staticRelativeTimerMessage = await channel.send(`<@${interaction.user.id}> The **${argsMap.content} (${argsMap.location})** pops **<t:${Math.floor(argsMap.popTime / 1000)}:R>**`);
+
+    setTimeout(async () => {
+        lastMessageSentIsCrucial = true;
+        await staticRelativeTimerMessage.delete();
+
+        sendUpdatingMessage(interaction, argsMap);
+    }, timeTillPop - ONE_HOUR);
+}
+
+async function sendUpdatingMessage(interaction, argsMap) {
+    lastMessageSentIsCrucial = true;
+    let updatingMessage = await argsMap.channel.send(`<@${interaction.user.id}> The **${argsMap.content} (${argsMap.location})** pops in **${createTimeField(argsMap.popTime)}**`);
+    countersActive++;
+
+    scheduleUpdate(updatingMessage, argsMap);
 
     let currentTime = Date.now();
 
@@ -126,9 +157,11 @@ async function handler(interaction) {
         return;
     }
 
-    setTimeout(() => {
+    setTimeout(async () => {
         try {
-            channel.send(`<@${interaction.user.id}> This is your **5 MINUTE** reminder about the **${argsMap.content}** in **${argsMap.location}**!`);    
+            lastMessageSentIsCrucial = true;
+            let fiveMinuteReminderMessage = await argsMap.channel.send(`<@${interaction.user.id}> This is your **5 MINUTE** reminder about the **${argsMap.content}** in **${argsMap.location}**!`);
+            argsMap.fiveMinuteReminder = fiveMinuteReminderMessage;
         } catch (err) {
             console.log(err);
         }
@@ -138,9 +171,11 @@ async function handler(interaction) {
         return;
     }
 
-    setTimeout(() => {
+    setTimeout(async () => {
         try {
-            channel.send(`<@${interaction.user.id}> This is your **10 MINUTE** reminder about the **${argsMap.content}** in **${argsMap.location}**!`);
+            lastMessageSentIsCrucial = true;
+            let tenMinuteReminderMessage = await argsMap.channel.send(`<@${interaction.user.id}> This is your **10 MINUTE** reminder about the **${argsMap.content}** in **${argsMap.location}**!`);
+            argsMap.tenMinuteReminder = tenMinuteReminderMessage;
         } catch (err) {
             console.log(err);
         }
@@ -148,27 +183,53 @@ async function handler(interaction) {
 }
 
 async function updateInteraction(updatingMessage, args) {
+    let currentTime = Date.now();
+
+    if (isRateLimited && currentTime < rateLimitResetTime) {
+        scheduleUpdate(updatingMessage, args);
+        return;
+    }
+
     if (args.popTime <= Date.now()) {
         try {
             let response = `<@${args.senderId}> The **${args.content}** in **${args.location}** is **LIVE**`;
-            updatingMessage.edit(response);
+            logger.log(response);
+
+            lastMessageSentIsCrucial = true;
+            await updatingMessage.edit(response);            
         } catch (err) {
             console.log(err);
-            args.channel.send(`<@${args.senderId}> The **${args.content}** in **${args.location}** is **LIVE**`);
         }
+
+        if (args.fiveMinuteReminder) {
+            lastMessageSentIsCrucial = true;
+            await args.fiveMinuteReminder.delete();
+        }
+
+        if (args.tenMinuteReminder) {
+            lastMessageSentIsCrucial = true;
+            await args.tenMinuteReminder.delete();
+        }
+
+        countersActive--;
         return;
     }
 
     try {
         let response = `<@${args.senderId}> The **${args.content} (${args.location})** pops in **${createTimeField(args.popTime)}**`;
-        updatingMessage.edit(response);
+        lastMessageSentIsCrucial = false;
+        await updatingMessage.edit(response);
     } catch (err) {
         console.log(err);
     }
 
+    scheduleUpdate(updatingMessage, args);
+}
+
+function scheduleUpdate(updatingMessage, args) {
     setTimeout(() => {
         updateInteraction(updatingMessage, args);
-    }, UPDATE_FREQUENCY);
+    }, ONE_SECOND * countersActive * rateLimitingSafety);
 }
 
 function createTimeField(popTime) {
@@ -218,4 +279,4 @@ function createTimeField(popTime) {
     return timeField;
 }
 
-export { remindCommand, handler };
+export { remindCommand, handler, lastMessageSentIsCrucial };
