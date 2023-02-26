@@ -16,10 +16,12 @@ import {
 import { handleCommand } from "./commandHandler.js";
 import { infoCommand } from './commands/info.js';
 import { remindCommand, lastMessageSentIsCrucial } from './commands/remind.js';
-import { ctaCommand } from "./commands/cta.js";
+import { ctaCommand } from "./commands/cta.js";s
+import { logger } from "./Logger.js";
 
 let isRateLimited = false;
 let rateLimitResetTime = 0;
+let isLoggedIn = false;
 
 const commands = [
     infoCommand,
@@ -45,6 +47,10 @@ const client = new Client({
     ],
     rest: {
         rejectOnRateLimit: (rateLimitInfo) => {
+            if (!isLoggedIn) {
+                return false;
+            }
+
             isRateLimited = true;
             let currentTime = Date.now();
             rateLimitResetTime = currentTime + rateLimitInfo.timeToReset;
@@ -86,7 +92,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
 async function main() {
     try {
+        logger.log("Bot is logging in...");
         await client.login(TOKEN);
+        logger.log("Bot is logged in!");
     } catch (err) {
         console.log(err);
     }
@@ -96,6 +104,7 @@ main();
 
 process.on('uncaughtException', (err) => {
     if (err.timeToReset) {
+        logger.log("Caught a RateLimitError...");
         return;
     }
 
