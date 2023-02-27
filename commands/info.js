@@ -2,7 +2,8 @@ import { SlashCommandBuilder } from '@discordjs/builders';
 
 const infoCommand = new SlashCommandBuilder()
     .setName("info")
-    .setDescription("Information about the ScoutzDevBot.").toJSON();
+    .setDescription("Information about the ScoutzDevBot")
+    .toJSON();
 
 async function handler(interaction) {
     sendReply(interaction);

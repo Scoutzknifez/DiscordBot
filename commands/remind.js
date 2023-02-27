@@ -14,7 +14,7 @@ const rateLimitingSafety = 1.5;
 
 const remindCommand = new SlashCommandBuilder()
     .setName("remind")
-    .setDescription("A remind command to ping you at a later time.")
+    .setDescription("A remind command to ping you at a later time about some content")
     .addStringOption(option => 
         option.setName("content")
             .setDescription("The type of content that pops on timer")

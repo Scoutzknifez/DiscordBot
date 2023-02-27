@@ -18,13 +18,6 @@ import { ctaCommand } from "./commands/cta.js";
 import { lastMessageSentIsCrucial, loadJson } from './utility.js';
 import { logger } from "./Logger.js";
 
-// All active slash commands
-const commands = [
-    infoCommand,
-    remindCommand,
-    ctaCommand
-];
-
 // Load the .env file and set variables to values
 config();
 const TOKEN = process.env.TOKEN;
@@ -40,6 +33,16 @@ let isProduction = true; // Start out as true to safeguard
 // Rate Limit
 let isRateLimited = false;
 let rateLimitResetTime = 0;
+
+// All active slash commands
+const commands = [
+    infoCommand,
+    remindCommand,
+];
+
+const developmentCommands = [
+    ctaCommand
+];
 
 const client = new Client({
     intents: [
@@ -69,6 +72,13 @@ const client = new Client({
 
 client.on(Events.ClientReady, async () => {
     let promises = [];
+
+    if (!isProduction) {
+        developmentCommands.forEach(command => {
+            commands.push(command);
+        });
+    }
+
     client.guilds.cache.map(guild => {
         console.log(`Sending up slash command information to ${guild.id}...`);
         promises.push(
@@ -135,4 +145,4 @@ process.on('uncaughtException', (err) => {
     process.exit();
 });
 
-export { client, isRateLimited, rateLimitResetTime };
+export { client, isProduction, isRateLimited, rateLimitResetTime };
