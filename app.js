@@ -16,7 +16,7 @@ import {
 import { handleCommand } from "./commandHandler.js";
 import { infoCommand } from './commands/info.js';
 import { remindCommand, lastMessageSentIsCrucial } from './commands/remind.js';
-import { ctaCommand } from "./commands/cta.js";s
+import { ctaCommand } from "./commands/cta.js";
 import { logger } from "./Logger.js";
 
 let isRateLimited = false;
