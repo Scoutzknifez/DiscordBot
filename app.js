@@ -20,11 +20,11 @@ import { logger } from "./Logger.js";
 
 // Load the .env file and set variables to values
 config();
-const TOKEN = process.env.TOKEN;
-const CLIENT_ID = process.env.CLIENT_ID;
+let TOKEN = "";
+let CLIENT_ID = "";
 
 // Allows slash commands to be sent up
-const rest = new REST({ version: '10' }).setToken(TOKEN);
+let rest = null;
 
 // Bot wide
 let isLoggedIn = false;
@@ -118,12 +118,16 @@ async function handleApplicationConfiguration() {
     let configurations = applicationConfiguration.default;
     isProduction = configurations.isProduction;
 
+    TOKEN = isProduction ? process.env.PROD_TOKEN : process.env.DEV_TOKEN;
+    CLIENT_ID = isProduction ? process.env.PROD_CLIENT_ID : process.env.DEV_CLIENT_ID;
+
     console.log(`Starting bot in ${isProduction ? "PRODUCTION" : "DEVELOPMENT"} environment...`);
 }
 
 async function main() {
     try {
         await handleApplicationConfiguration();
+        rest = new REST({ version: '10' }).setToken(TOKEN);
 
         logger.log("Bot is logging in...");
         await client.login(TOKEN);
